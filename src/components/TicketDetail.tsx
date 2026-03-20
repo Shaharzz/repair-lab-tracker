@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTickets, STATUSES, type Ticket, type TicketStatus } from '@/context/TicketContext';
 import { StatusBadge } from './StatusBadge';
-import { MessageCircle, Copy, Plus } from 'lucide-react';
+import { MessageCircle, Copy, Plus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -19,8 +19,18 @@ interface Props {
 export function TicketDetail({ ticket, open, onClose }: Props) {
   const { updateTicket } = useTickets();
   const [newUpdate, setNewUpdate] = useState('');
+  const [draft, setDraft] = useState<Ticket | null>(null);
+  const [dirty, setDirty] = useState(false);
 
-  if (!ticket) return null;
+  // Sync draft when ticket changes or sheet opens
+  useEffect(() => {
+    if (ticket) {
+      setDraft({ ...ticket, publicUpdates: [...ticket.publicUpdates] });
+      setDirty(false);
+    }
+  }, [ticket?.id, open]);
+
+  if (!ticket || !draft) return null;
 
   const trackingUrl = `${window.location.origin}/track/${ticket.tokenId}`;
 
@@ -33,16 +43,27 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
     toast.success('Tracking link copied!');
   };
 
+  const updateDraft = (updates: Partial<Ticket>) => {
+    setDraft(prev => prev ? { ...prev, ...updates } : prev);
+    setDirty(true);
+  };
+
+  const handleSave = () => {
+    if (!draft) return;
+    const { id, tokenId, ...rest } = draft;
+    updateTicket(ticket.id, rest);
+    setDirty(false);
+    toast.success('Ticket saved');
+  };
+
   const addPublicUpdate = () => {
     if (!newUpdate.trim()) return;
-    updateTicket(ticket.id, {
-      publicUpdates: [
-        ...ticket.publicUpdates,
-        { date: new Date().toISOString().split('T')[0], message: newUpdate.trim() },
-      ],
-    });
+    const updated = [
+      ...draft.publicUpdates,
+      { date: new Date().toISOString().split('T')[0], message: newUpdate.trim() },
+    ];
+    updateDraft({ publicUpdates: updated });
     setNewUpdate('');
-    toast.success('Update added');
   };
 
   return (
@@ -51,7 +72,7 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-3 flex-wrap">
             <span>Ticket #{ticket.id}</span>
-            <StatusBadge status={ticket.status} />
+            <StatusBadge status={draft.status} />
           </SheetTitle>
         </SheetHeader>
 
@@ -74,8 +95,8 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
           <div className="grid gap-1.5">
             <Label>Status</Label>
             <Select
-              value={ticket.status}
-              onValueChange={v => updateTicket(ticket.id, { status: v as TicketStatus })}
+              value={draft.status}
+              onValueChange={v => updateDraft({ status: v as TicketStatus })}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -91,15 +112,15 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
             <div className="grid gap-1.5">
               <Label>Customer</Label>
               <Input
-                value={ticket.customerName}
-                onChange={e => updateTicket(ticket.id, { customerName: e.target.value })}
+                value={draft.customerName}
+                onChange={e => updateDraft({ customerName: e.target.value })}
               />
             </div>
             <div className="grid gap-1.5">
               <Label>Phone</Label>
               <Input
-                value={ticket.customerPhone}
-                onChange={e => updateTicket(ticket.id, { customerPhone: e.target.value })}
+                value={draft.customerPhone}
+                onChange={e => updateDraft({ customerPhone: e.target.value })}
               />
             </div>
           </div>
@@ -107,16 +128,16 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
           <div className="grid gap-1.5">
             <Label>Device</Label>
             <Input
-              value={ticket.deviceModel}
-              onChange={e => updateTicket(ticket.id, { deviceModel: e.target.value })}
+              value={draft.deviceModel}
+              onChange={e => updateDraft({ deviceModel: e.target.value })}
             />
           </div>
 
           <div className="grid gap-1.5">
             <Label>OS Passcode</Label>
             <Input
-              value={ticket.osPasscode}
-              onChange={e => updateTicket(ticket.id, { osPasscode: e.target.value })}
+              value={draft.osPasscode}
+              onChange={e => updateDraft({ osPasscode: e.target.value })}
               className="font-mono"
             />
           </div>
@@ -124,8 +145,8 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
           <div className="grid gap-1.5">
             <Label>Issue</Label>
             <Textarea
-              value={ticket.issueDescription}
-              onChange={e => updateTicket(ticket.id, { issueDescription: e.target.value })}
+              value={draft.issueDescription}
+              onChange={e => updateDraft({ issueDescription: e.target.value })}
               rows={2}
             />
           </div>
@@ -133,8 +154,8 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
           <div className="grid gap-1.5">
             <Label>Internal Notes</Label>
             <Textarea
-              value={ticket.internalNotes}
-              onChange={e => updateTicket(ticket.id, { internalNotes: e.target.value })}
+              value={draft.internalNotes}
+              onChange={e => updateDraft({ internalNotes: e.target.value })}
               rows={3}
               className="border-dashed"
             />
@@ -144,7 +165,7 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
           <div className="grid gap-2">
             <Label>Public Updates</Label>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {ticket.publicUpdates.map((u, i) => (
+              {draft.publicUpdates.map((u, i) => (
                 <div key={i} className="rounded-md bg-muted p-2.5 text-sm">
                   <span className="font-mono text-xs text-muted-foreground">{u.date}</span>
                   <p className="mt-0.5">{u.message}</p>
@@ -163,6 +184,12 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
               </Button>
             </div>
           </div>
+
+          {/* Save button */}
+          <Button onClick={handleSave} disabled={!dirty} className="w-full gap-2">
+            <Save className="h-4 w-4" />
+            {dirty ? 'Save Changes' : 'Saved'}
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
