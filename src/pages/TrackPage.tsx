@@ -54,7 +54,7 @@ export default function TrackPage() {
           <div className="bg-gradient-to-br from-blue-500 to-violet-500 text-white w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/40">
             <Wrench className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-white">מעבדת התיקונים של שחר</h1>
+          <h1 className="text-2xl font-bold text-white">מעבדת התיקונים</h1>
           <p className="text-blue-100/90 mt-1">מעקב קריאת שירות</p>
         </div>
 
