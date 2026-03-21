@@ -65,9 +65,11 @@ function LoginScreen() {
 export default function AdminPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const { tickets, loading } = useTickets();
+  const { tickets, loading, refreshTickets } = useTickets();
   const [search, setSearch] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -98,6 +100,59 @@ export default function AdminPage() {
       .some(f => f.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const visibleIds = filtered.map(t => t.id);
+  const selectedVisibleCount = visibleIds.filter(id => selectedIds.includes(id)).length;
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+
+  const toggleSelectAllVisible = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+      return;
+    }
+
+    setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
+  };
+
+  const toggleSelectTicket = (id: string, checked: boolean) => {
+    setSelectedIds(prev => (checked ? [...prev, id] : prev.filter(v => v !== id)));
+  };
+
+  const deleteTicketsByIds = async (ids: string[]) => {
+    if (ids.length === 0) return;
+
+    setDeleting(true);
+    const { error } = await supabase.from('tickets').delete().in('id', ids);
+    setDeleting(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
+    if (selectedTicket && ids.includes(selectedTicket.id)) {
+      setSelectedTicket(null);
+    }
+
+    await refreshTickets();
+    toast.success(ids.length === 1 ? 'Ticket removed.' : `${ids.length} tickets removed.`);
+  };
+
+  const handleRemoveTicket = async (ticket: Ticket) => {
+    const confirmed = window.confirm(`Remove ticket #${ticket.tokenId}?`);
+    if (!confirmed) return;
+    await deleteTicketsByIds([ticket.id]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    const confirmed = window.confirm(`Remove ${selectedIds.length} selected ticket(s)?`);
+    if (!confirmed) return;
+
+    await deleteTicketsByIds(selectedIds);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
@@ -123,14 +178,24 @@ export default function AdminPage() {
 
       <main className="mx-auto max-w-6xl p-4 space-y-4">
         {/* Search */}
-        <div className="relative animate-reveal-up">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search tickets…"
-            className="pl-9"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center animate-reveal-up">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search tickets…"
+              className="pl-9"
+            />
+          </div>
+          <Button
+            variant="destructive"
+            onClick={handleBulkDelete}
+            disabled={selectedIds.length === 0 || deleting || loading}
+          >
+            {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+            Bulk Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+          </Button>
         </div>
 
         {/* Table */}
@@ -139,17 +204,27 @@ export default function AdminPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all visible tickets"
+                      checked={allVisibleSelected}
+                      onChange={e => toggleSelectAllVisible(e.target.checked)}
+                      disabled={loading || deleting || visibleIds.length === 0}
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Token</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Customer</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden sm:table-cell">Device</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">Received</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                       <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                     </td>
                   </tr>
@@ -159,16 +234,35 @@ export default function AdminPage() {
                     onClick={() => setSelectedTicket(ticket)}
                     className="border-b last:border-0 cursor-pointer transition-colors hover:bg-muted/40 active:scale-[0.995]"
                   >
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ticket ${ticket.tokenId}`}
+                        checked={selectedIds.includes(ticket.id)}
+                        onChange={e => toggleSelectTicket(ticket.id, e.target.checked)}
+                        disabled={deleting}
+                      />
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs">{ticket.tokenId}</td>
                     <td className="px-4 py-3 font-medium">{ticket.customerName}</td>
                     <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">{ticket.deviceModel}</td>
                     <td className="px-4 py-3"><StatusBadge status={ticket.status} /></td>
                     <td className="px-4 py-3 hidden md:table-cell text-muted-foreground font-mono text-xs">{ticket.dateReceived}</td>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void handleRemoveTicket(ticket)}
+                        disabled={deleting}
+                      >
+                        Remove
+                      </Button>
+                    </td>
                   </tr>
                 ))}
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                       No tickets found.
                     </td>
                   </tr>
