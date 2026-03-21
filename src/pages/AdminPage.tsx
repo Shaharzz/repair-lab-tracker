@@ -113,6 +113,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <NewTicketDialog />
+            <InviteAdminDialog />
             <Button size="icon" variant="ghost" onClick={handleLogout} className="h-8 w-8">
               <LogOut className="h-4 w-4" />
             </Button>
