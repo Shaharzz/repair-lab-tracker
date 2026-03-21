@@ -15,28 +15,13 @@ function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success('Check your email to confirm your account');
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        toast.error(error.message);
-      }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      toast.error(error.message);
     }
     setLoading(false);
   };
@@ -49,9 +34,7 @@ function LoginScreen() {
             <Cpu className="h-7 w-7" />
           </div>
           <h1 className="text-xl font-semibold">RepairLab Admin</h1>
-          <p className="text-sm text-muted-foreground">
-            {isSignUp ? 'Create your admin account' : 'Sign in to continue'}
-          </p>
+          <p className="text-sm text-muted-foreground">Sign in to continue</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -71,15 +54,9 @@ function LoginScreen() {
           />
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSignUp ? 'Sign Up' : 'Sign In'}
+            Sign In
           </Button>
         </form>
-        <button
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-        </button>
       </div>
     </div>
   );
