@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { usePublicTicket } from '@/context/TicketContext';
 import { ProgressStepper } from '@/components/ProgressStepper';
-import { MessageCircle, Loader2, SearchX, Wrench, BadgeCheck, Clock3 } from 'lucide-react';
+import { MessageCircle, Loader2, SearchX, Wrench, BadgeCheck, Clock3, CreditCard } from 'lucide-react';
 
 export default function TrackPage() {
   const { tokenId } = useParams<{ tokenId: string }>();
@@ -39,6 +39,7 @@ export default function TrackPage() {
       : null;
 
   const myPhoneNumber = '972509942508';
+  const payLink = 'https://www.bitpay.co.il/app/me/D83568D5-3B7E-FF9B-717F-660BFA7277ABB5C3';
   const whatsappMessage = encodeURIComponent(`היי שחר, אני פונה בקשר לתיקון מספר: ${ticket.tokenId}`);
 
   return (
@@ -124,15 +125,26 @@ export default function TrackPage() {
           {/* WhatsApp Footer */}
           <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-6 border-t border-gray-100 text-center">
             <p className="text-sm text-slate-600 mb-4">צריך עזרה או שיש לך שאלה?</p>
-            <a
-                href={`https://wa.me/${myPhoneNumber}?text=${whatsappMessage}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg w-full sm:w-auto"
-            >
-              <MessageCircle className="w-5 h-5" />
-              דבר איתי בוואטסאפ
-            </a>
+            <div className="flex flex-col sm:flex-row sm:justify-center gap-3">
+              <a
+                  href={payLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg w-full sm:w-auto"
+              >
+                <CreditCard className="w-5 h-5" />
+                שלם עכשיו
+              </a>
+              <a
+                  href={`https://wa.me/${myPhoneNumber}?text=${whatsappMessage}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg w-full sm:w-auto"
+              >
+                <MessageCircle className="w-5 h-5" />
+                דבר איתי בוואטסאפ
+              </a>
+            </div>
           </div>
         </div>
       </div>
