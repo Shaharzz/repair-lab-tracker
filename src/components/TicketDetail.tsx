@@ -16,6 +16,14 @@ interface Props {
   onClose: () => void;
 }
 
+function normalizeIsraeliPhoneForWhatsapp(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('972')) return digits;
+  if (digits.startsWith('0')) return `972${digits.slice(1)}`;
+  return digits;
+}
+
 export function TicketDetail({ ticket, open, onClose }: Props) {
   const { updateTicket } = useTickets();
   const [newUpdate, setNewUpdate] = useState('');
@@ -34,7 +42,8 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
 
   const trackingUrl = `${window.location.origin}/track/${ticket.tokenId}`;
 
-  const whatsappLink = `https://wa.me/${ticket.customerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
+  const whatsappPhone = normalizeIsraeliPhoneForWhatsapp(ticket.customerPhone);
+  const whatsappLink = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
       `היי ${ticket.customerName}, אפשר לעקוב אחרי סטטוס התיקון שלך כאן: ${trackingUrl}`
   )}`;
 
@@ -150,19 +159,20 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
                     placeholder="0"
                     className="text-right"
                 />
-                <div className="flex items-center gap-2 mt-1 justify-end pr-1">
-                  <Label htmlFor="showPrice" className="text-sm text-gray-600 cursor-pointer select-none">
-                    הצג מחיר ללקוח בדף המעקב
-                  </Label>
-                  <input
-                      type="checkbox"
-                      id="showPrice"
-                      checked={draft.isPricePublic || false}
-                      onChange={e => updateDraft({ isPricePublic: e.target.checked })}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                </div>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 justify-end pr-1 -mt-2">
+              <Label htmlFor="showPrice" className="text-sm text-gray-600 cursor-pointer select-none">
+                הצג מחיר ללקוח בדף המעקב
+              </Label>
+              <input
+                  type="checkbox"
+                  id="showPrice"
+                  checked={draft.isPricePublic || false}
+                  onChange={e => updateDraft({ isPricePublic: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
             </div>
 
             {/* Customer info */}
@@ -201,6 +211,26 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
                 <Input
                     value={draft.osPasscode}
                     onChange={e => updateDraft({ osPasscode: e.target.value })}
+                    className="font-mono text-center"
+                    dir="ltr"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-right">צבע (אופציונלי)</Label>
+                <Input
+                    value={draft.color ?? ''}
+                    onChange={e => updateDraft({ color: e.target.value })}
+                    className="text-right"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-right">IMEI (אופציונלי)</Label>
+                <Input
+                    value={draft.imei ?? ''}
+                    onChange={e => updateDraft({ imei: e.target.value })}
                     className="font-mono text-center"
                     dir="ltr"
                 />

@@ -35,6 +35,8 @@ export interface Ticket {
   publicUpdates: PublicUpdate[];
   status: TicketStatus;
   dateReceived: string;
+  color?: string;
+  imei?: string;
   // שדות חדשים שהוספנו:
   price?: number;
   isPricePublic?: boolean;
@@ -79,6 +81,8 @@ function rowToTicket(row: any): Ticket {
     publicUpdates: (row.public_updates || []) as PublicUpdate[],
     status: row.status as TicketStatus,
     dateReceived: row.date_received,
+    color: row.color ?? undefined,
+    imei: row.imei ?? undefined,
     // מיפוי השדות מהמסד לאפליקציה
     price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
     isPricePublic: Boolean(row.is_price_public ?? row.isPricePublic),
@@ -130,6 +134,8 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
           public_updates: ticket.publicUpdates as any,
           status: ticket.status,
           date_received: ticket.dateReceived,
+          color: ticket.color,
+          imei: ticket.imei,
           price: ticket.price,
           is_price_public: ticket.isPricePublic,
         })
@@ -153,6 +159,8 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
     if (updates.publicUpdates !== undefined) dbUpdates.public_updates = updates.publicUpdates;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.dateReceived !== undefined) dbUpdates.date_received = updates.dateReceived;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.imei !== undefined) dbUpdates.imei = updates.imei;
 
     // הוספת השדות החדשים לשליחה למסד הנתונים
     if (updates.price !== undefined) dbUpdates.price = updates.price;

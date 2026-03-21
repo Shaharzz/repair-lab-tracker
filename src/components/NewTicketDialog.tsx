@@ -17,6 +17,8 @@ export function NewTicketDialog() {
     customerName: '',
     customerPhone: '',
     deviceModel: '',
+    color: '',
+    imei: '',
     osPasscode: '',
     issueDescription: '',
   });
@@ -37,7 +39,7 @@ export function NewTicketDialog() {
         dateReceived: new Date().toISOString().split('T')[0],
       });
       toast.success(`Ticket created — Token: ${ticket.tokenId}`);
-      setForm({ customerName: '', customerPhone: '', deviceModel: '', osPasscode: '', issueDescription: '' });
+      setForm({ customerName: '', customerPhone: '', deviceModel: '', color: '', imei: '', osPasscode: '', issueDescription: '' });
       setOpen(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to create ticket');
@@ -47,6 +49,11 @@ export function NewTicketDialog() {
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(prev => ({ ...prev, [key]: e.target.value }));
+
+  const setPhone = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digitsOnly = e.target.value.replace(/\D/g, '');
+    setForm(prev => ({ ...prev, customerPhone: digitsOnly }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -67,11 +74,30 @@ export function NewTicketDialog() {
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="phone">Phone</Label>
-            <Input id="phone" value={form.customerPhone} onChange={set('customerPhone')} placeholder="+1 (555) 000-0000" />
+            <Input
+              id="phone"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={form.customerPhone}
+              onChange={setPhone}
+              placeholder="Phone Number"
+              dir="ltr"
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="device">Device Model *</Label>
             <Input id="device" value={form.deviceModel} onChange={set('deviceModel')} placeholder="e.g. iPhone 15 Pro" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="color">Color (Optional)</Label>
+              <Input id="color" value={form.color} onChange={set('color')} placeholder="e.g. Black" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="imei">IMEI (Optional)</Label>
+              <Input id="imei" value={form.imei} onChange={set('imei')} placeholder="e.g. 3569..." />
+            </div>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="passcode">OS Passcode</Label>

@@ -16,12 +16,14 @@ export type Database = {
     Tables: {
       tickets: {
         Row: {
+          color: string | null
           created_at: string | null
           customer_name: string
           customer_phone: string | null
           date_received: string
           device_model: string
           id: string
+          imei: string | null
           is_price_public: boolean
           internal_notes: string | null
           issue_description: string | null
@@ -32,12 +34,14 @@ export type Database = {
           token_id: string
         }
         Insert: {
+          color?: string | null
           created_at?: string | null
           customer_name: string
           customer_phone?: string | null
           date_received?: string
           device_model: string
           id?: string
+          imei?: string | null
           is_price_public?: boolean
           internal_notes?: string | null
           issue_description?: string | null
@@ -48,12 +52,14 @@ export type Database = {
           token_id: string
         }
         Update: {
+          color?: string | null
           created_at?: string | null
           customer_name?: string
           customer_phone?: string | null
           date_received?: string
           device_model?: string
           id?: string
+          imei?: string | null
           is_price_public?: boolean
           internal_notes?: string | null
           issue_description?: string | null
