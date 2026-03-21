@@ -14,13 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      tickets: {
+        Row: {
+          created_at: string | null
+          customer_name: string
+          customer_phone: string | null
+          date_received: string
+          device_model: string
+          id: string
+          internal_notes: string | null
+          issue_description: string | null
+          os_passcode: string | null
+          public_updates: Json | null
+          status: string
+          token_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          date_received?: string
+          device_model: string
+          id?: string
+          internal_notes?: string | null
+          issue_description?: string | null
+          os_passcode?: string | null
+          public_updates?: Json | null
+          status?: string
+          token_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          date_received?: string
+          device_model?: string
+          id?: string
+          internal_notes?: string | null
+          issue_description?: string | null
+          os_passcode?: string | null
+          public_updates?: Json | null
+          status?: string
+          token_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_ticket_by_token: { Args: { p_token_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

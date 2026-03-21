@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useTickets, type TicketStatus } from '@/context/TicketContext';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function NewTicketDialog() {
   const [open, setOpen] = useState(false);
   const { addTicket } = useTickets();
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
     customerName: '',
@@ -20,22 +21,28 @@ export function NewTicketDialog() {
     issueDescription: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerName || !form.deviceModel) {
       toast.error('Name and device model are required.');
       return;
     }
-    const ticket = addTicket({
-      ...form,
-      internalNotes: '',
-      publicUpdates: [{ date: new Date().toISOString().split('T')[0], message: 'Device received and logged.' }],
-      status: 'Received' as TicketStatus,
-      dateReceived: new Date().toISOString().split('T')[0],
-    });
-    toast.success(`Ticket created — Token: ${ticket.tokenId}`);
-    setForm({ customerName: '', customerPhone: '', deviceModel: '', osPasscode: '', issueDescription: '' });
-    setOpen(false);
+    setLoading(true);
+    try {
+      const ticket = await addTicket({
+        ...form,
+        internalNotes: '',
+        publicUpdates: [{ date: new Date().toISOString().split('T')[0], message: 'Device received and logged.' }],
+        status: 'Received' as TicketStatus,
+        dateReceived: new Date().toISOString().split('T')[0],
+      });
+      toast.success(`Ticket created — Token: ${ticket.tokenId}`);
+      setForm({ customerName: '', customerPhone: '', deviceModel: '', osPasscode: '', issueDescription: '' });
+      setOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create ticket');
+    }
+    setLoading(false);
   };
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -74,7 +81,10 @@ export function NewTicketDialog() {
             <Label htmlFor="issue">Issue Description</Label>
             <Textarea id="issue" value={form.issueDescription} onChange={set('issueDescription')} placeholder="Describe the problem" rows={3} />
           </div>
-          <Button type="submit" className="w-full">Create Ticket</Button>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Create Ticket
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
