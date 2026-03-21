@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTickets, type Ticket } from '@/context/TicketContext';
 import { NewTicketDialog } from '@/components/NewTicketDialog';
+import { InviteAdminDialog } from '@/components/InviteAdminDialog';
 import { TicketDetail } from '@/components/TicketDetail';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
