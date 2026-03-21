@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTickets, STATUSES, type Ticket, type TicketStatus } from '@/context/TicketContext';
 import { StatusBadge } from './StatusBadge';
-import { MessageCircle, Copy, Plus, Save } from 'lucide-react';
+import { MessageCircle, Copy, Plus, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -21,8 +21,8 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
   const [newUpdate, setNewUpdate] = useState('');
   const [draft, setDraft] = useState<Ticket | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Sync draft when ticket changes or sheet opens
   useEffect(() => {
     if (ticket) {
       setDraft({ ...ticket, publicUpdates: [...ticket.publicUpdates] });
@@ -48,12 +48,18 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
     setDirty(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!draft) return;
-    const { id, tokenId, ...rest } = draft;
-    updateTicket(ticket.id, rest);
-    setDirty(false);
-    toast.success('Ticket saved');
+    setSaving(true);
+    try {
+      const { id, tokenId, ...rest } = draft;
+      await updateTicket(ticket.id, rest);
+      setDirty(false);
+      toast.success('Ticket saved');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save');
+    }
+    setSaving(false);
   };
 
   const addPublicUpdate = () => {
@@ -71,7 +77,7 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-3 flex-wrap">
-            <span>Ticket #{ticket.id}</span>
+            <span className="truncate">Ticket</span>
             <StatusBadge status={draft.status} />
           </SheetTitle>
         </SheetHeader>
@@ -186,9 +192,9 @@ export function TicketDetail({ ticket, open, onClose }: Props) {
           </div>
 
           {/* Save button */}
-          <Button onClick={handleSave} disabled={!dirty} className="w-full gap-2">
-            <Save className="h-4 w-4" />
-            {dirty ? 'Save Changes' : 'Saved'}
+          <Button onClick={handleSave} disabled={!dirty || saving} className="w-full gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? 'Saving…' : dirty ? 'Save Changes' : 'Saved'}
           </Button>
         </div>
       </SheetContent>

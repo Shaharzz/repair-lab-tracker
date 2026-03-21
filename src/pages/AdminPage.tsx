@@ -1,23 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useTickets, type Ticket } from '@/context/TicketContext';
 import { NewTicketDialog } from '@/components/NewTicketDialog';
 import { TicketDetail } from '@/components/TicketDetail';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Wrench, Search, LogOut, Cpu } from 'lucide-react';
+import { Wrench, Search, LogOut, Cpu, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import type { Session } from '@supabase/supabase-js';
 
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [pw, setPw] = useState('');
-  const [error, setError] = useState(false);
+function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pw === 'admin') {
-      onLogin();
+    setLoading(true);
+
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Check your email to confirm your account');
+      }
     } else {
-      setError(true);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(error.message);
+      }
     }
+    setLoading(false);
   };
 
   return (
@@ -28,36 +48,81 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             <Cpu className="h-7 w-7" />
           </div>
           <h1 className="text-xl font-semibold">RepairLab Admin</h1>
-          <p className="text-sm text-muted-foreground">Enter password to continue</p>
+          <p className="text-sm text-muted-foreground">
+            {isSignUp ? 'Create your admin account' : 'Sign in to continue'}
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
+          <Input
             type="password"
             placeholder="Password"
-            value={pw}
-            onChange={e => { setPw(e.target.value); setError(false); }}
-            className={error ? 'border-destructive' : ''}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            minLength={6}
           />
-          {error && <p className="text-xs text-destructive">Incorrect password. Hint: admin</p>}
-          <Button type="submit" className="w-full">Sign In</Button>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSignUp ? 'Sign Up' : 'Sign In'}
+          </Button>
         </form>
+        <button
+          onClick={() => setIsSignUp(!isSignUp)}
+          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+        </button>
       </div>
     </div>
   );
 }
 
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const { tickets } = useTickets();
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const { tickets, loading } = useTickets();
   const [search, setSearch] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
-  if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!session) return <LoginScreen />;
 
   const filtered = tickets.filter(t =>
     [t.customerName, t.deviceModel, t.tokenId, t.status]
       .some(f => f.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,7 +135,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <NewTicketDialog />
-            <Button size="icon" variant="ghost" onClick={() => setAuthed(false)} className="h-8 w-8">
+            <Button size="icon" variant="ghost" onClick={handleLogout} className="h-8 w-8">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -103,7 +168,13 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(ticket => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                    </td>
+                  </tr>
+                ) : filtered.map(ticket => (
                   <tr
                     key={ticket.id}
                     onClick={() => setSelectedTicket(ticket)}
@@ -116,7 +187,7 @@ export default function AdminPage() {
                     <td className="px-4 py-3 hidden md:table-cell text-muted-foreground font-mono text-xs">{ticket.dateReceived}</td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {!loading && filtered.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
                       No tickets found.

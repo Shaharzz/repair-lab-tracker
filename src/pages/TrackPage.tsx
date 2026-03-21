@@ -1,12 +1,19 @@
 import { useParams } from 'react-router-dom';
-import { useTickets } from '@/context/TicketContext';
+import { usePublicTicket } from '@/context/TicketContext';
 import { ProgressStepper } from '@/components/ProgressStepper';
-import { Cpu, SearchX, CalendarDays, Smartphone } from 'lucide-react';
+import { Cpu, SearchX, CalendarDays, Smartphone, Loader2 } from 'lucide-react';
 
 export default function TrackPage() {
   const { tokenId } = useParams<{ tokenId: string }>();
-  const { getTicketByToken } = useTickets();
-  const ticket = tokenId ? getTicketByToken(tokenId) : undefined;
+  const { ticket, loading } = usePublicTicket(tokenId);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!ticket) {
     return (
@@ -26,7 +33,6 @@ export default function TrackPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b">
         <div className="mx-auto flex h-14 max-w-2xl items-center gap-2 px-4">
           <Cpu className="h-5 w-5 text-primary" />
@@ -36,7 +42,6 @@ export default function TrackPage() {
       </header>
 
       <main className="mx-auto max-w-2xl p-4 space-y-6">
-        {/* Hero */}
         <div className="animate-reveal-up">
           <h1 className="text-2xl font-semibold leading-tight" style={{ textWrap: 'balance' }}>
             Repair Tracking
@@ -44,7 +49,6 @@ export default function TrackPage() {
           <p className="text-muted-foreground text-sm mt-1">Follow the progress of your device repair below.</p>
         </div>
 
-        {/* Device info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-reveal-up-delay-1">
           <div className="flex items-start gap-3 rounded-xl border p-4 surface-elevated">
             <Smartphone className="h-5 w-5 text-primary mt-0.5 shrink-0" />
@@ -62,13 +66,11 @@ export default function TrackPage() {
           </div>
         </div>
 
-        {/* Progress */}
         <div className="rounded-xl border p-5 surface-elevated animate-reveal-up-delay-2">
           <h2 className="text-sm font-semibold mb-4">Progress</h2>
           <ProgressStepper currentStatus={ticket.status} />
         </div>
 
-        {/* Updates timeline */}
         {ticket.publicUpdates.length > 0 && (
           <div className="animate-reveal-up-delay-3">
             <h2 className="text-sm font-semibold mb-3">Updates</h2>

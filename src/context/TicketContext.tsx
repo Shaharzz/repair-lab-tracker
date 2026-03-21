@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export type TicketStatus =
   | 'Received'
@@ -23,7 +24,7 @@ export interface PublicUpdate {
 }
 
 export interface Ticket {
-  id: number;
+  id: string;
   tokenId: string;
   customerName: string;
   customerPhone: string;
@@ -31,6 +32,17 @@ export interface Ticket {
   osPasscode: string;
   issueDescription: string;
   internalNotes: string;
+  publicUpdates: PublicUpdate[];
+  status: TicketStatus;
+  dateReceived: string;
+}
+
+// Public-only ticket (no sensitive fields)
+export interface PublicTicket {
+  id: string;
+  tokenId: string;
+  customerName: string;
+  deviceModel: string;
   publicUpdates: PublicUpdate[];
   status: TicketStatus;
   dateReceived: string;
@@ -45,75 +57,103 @@ function generateTokenId(): string {
   return result;
 }
 
-const MOCK_TICKETS: Ticket[] = [
-  {
-    id: 1,
-    tokenId: 'xK9p2mQv1L',
-    customerName: 'Sarah Mitchell',
-    customerPhone: '+1 (555) 234-8901',
-    deviceModel: 'MacBook Air M2 (A2681)',
-    osPasscode: '4829',
-    issueDescription: 'Dead, no power',
-    internalNotes: 'Board swap needed. Sourced replacement C-shell + display for approx $230.',
-    publicUpdates: [
-      { date: '2024-03-15', message: 'Device received and inspection started.' },
-      { date: '2024-03-16', message: 'Diagnosis complete — logic board failure confirmed. Ordering replacement parts.' },
-    ],
-    status: 'Waiting for Parts',
-    dateReceived: '2024-03-15',
-  },
-  {
-    id: 2,
-    tokenId: 'Rj7wN3kY5d',
-    customerName: 'Marcus Chen',
-    customerPhone: '+1 (555) 876-4320',
-    deviceModel: 'Custom PC (R7 5700X, 32GB RAM, RX 5700 XT)',
-    osPasscode: '',
-    issueDescription: 'Drive clicking, missing files',
-    internalNotes: 'Data recovery in progress. Repairing corrupted video frames.',
-    publicUpdates: [
-      { date: '2024-03-12', message: 'System received. Running initial diagnostics.' },
-      { date: '2024-03-13', message: 'Hard drive failure detected. Starting data recovery process.' },
-      { date: '2024-03-14', message: 'Recovery underway — approximately 78% of data retrieved so far.' },
-    ],
-    status: 'In Repair',
-    dateReceived: '2024-03-12',
-  },
-];
+// Map DB row to app Ticket
+function rowToTicket(row: any): Ticket {
+  return {
+    id: row.id,
+    tokenId: row.token_id,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    deviceModel: row.device_model,
+    osPasscode: row.os_passcode,
+    issueDescription: row.issue_description,
+    internalNotes: row.internal_notes,
+    publicUpdates: (row.public_updates || []) as PublicUpdate[],
+    status: row.status as TicketStatus,
+    dateReceived: row.date_received,
+  };
+}
 
 interface TicketContextType {
   tickets: Ticket[];
-  addTicket: (ticket: Omit<Ticket, 'id' | 'tokenId'>) => Ticket;
-  updateTicket: (id: number, updates: Partial<Ticket>) => void;
-  getTicketByToken: (tokenId: string) => Ticket | undefined;
+  loading: boolean;
+  addTicket: (ticket: Omit<Ticket, 'id' | 'tokenId'>) => Promise<Ticket>;
+  updateTicket: (id: string, updates: Partial<Ticket>) => Promise<void>;
+  refreshTickets: () => Promise<void>;
 }
 
 const TicketContext = createContext<TicketContextType | null>(null);
 
 export function TicketProvider({ children }: { children: React.ReactNode }) {
-  const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addTicket = useCallback((ticket: Omit<Ticket, 'id' | 'tokenId'>) => {
-    const newTicket: Ticket = {
-      ...ticket,
-      id: Date.now(),
-      tokenId: generateTokenId(),
-    };
-    setTickets(prev => [...prev, newTicket]);
+  const refreshTickets = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setTickets(data.map(rowToTicket));
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refreshTickets();
+  }, [refreshTickets]);
+
+  const addTicket = useCallback(async (ticket: Omit<Ticket, 'id' | 'tokenId'>): Promise<Ticket> => {
+    const tokenId = generateTokenId();
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert({
+        token_id: tokenId,
+        customer_name: ticket.customerName,
+        customer_phone: ticket.customerPhone,
+        device_model: ticket.deviceModel,
+        os_passcode: ticket.osPasscode,
+        issue_description: ticket.issueDescription,
+        internal_notes: ticket.internalNotes,
+        public_updates: ticket.publicUpdates as any,
+        status: ticket.status,
+        date_received: ticket.dateReceived,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    const newTicket = rowToTicket(data);
+    setTickets(prev => [newTicket, ...prev]);
     return newTicket;
   }, []);
 
-  const updateTicket = useCallback((id: number, updates: Partial<Ticket>) => {
-    setTickets(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
+  const updateTicket = useCallback(async (id: string, updates: Partial<Ticket>) => {
+    const dbUpdates: any = {};
+    if (updates.customerName !== undefined) dbUpdates.customer_name = updates.customerName;
+    if (updates.customerPhone !== undefined) dbUpdates.customer_phone = updates.customerPhone;
+    if (updates.deviceModel !== undefined) dbUpdates.device_model = updates.deviceModel;
+    if (updates.osPasscode !== undefined) dbUpdates.os_passcode = updates.osPasscode;
+    if (updates.issueDescription !== undefined) dbUpdates.issue_description = updates.issueDescription;
+    if (updates.internalNotes !== undefined) dbUpdates.internal_notes = updates.internalNotes;
+    if (updates.publicUpdates !== undefined) dbUpdates.public_updates = updates.publicUpdates;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.dateReceived !== undefined) dbUpdates.date_received = updates.dateReceived;
+
+    const { error } = await supabase
+      .from('tickets')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) throw error;
+    setTickets(prev =>
+      prev.map(t => (t.id === id ? { ...t, ...updates } : t))
+    );
   }, []);
 
-  const getTicketByToken = useCallback(
-    (tokenId: string) => tickets.find(t => t.tokenId === tokenId),
-    [tickets]
-  );
-
   return (
-    <TicketContext.Provider value={{ tickets, addTicket, updateTicket, getTicketByToken }}>
+    <TicketContext.Provider value={{ tickets, loading, addTicket, updateTicket, refreshTickets }}>
       {children}
     </TicketContext.Provider>
   );
@@ -123,4 +163,35 @@ export function useTickets() {
   const ctx = useContext(TicketContext);
   if (!ctx) throw new Error('useTickets must be used within TicketProvider');
   return ctx;
+}
+
+// Hook for public tracking — uses the security definer function
+export function usePublicTicket(tokenId: string | undefined) {
+  const [ticket, setTicket] = useState<PublicTicket | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tokenId) {
+      setLoading(false);
+      return;
+    }
+
+    supabase.rpc('get_ticket_by_token', { p_token_id: tokenId }).then(({ data, error }) => {
+      if (!error && data) {
+        const d = data as any;
+        setTicket({
+          id: d.id,
+          tokenId: d.token_id,
+          customerName: d.customer_name,
+          deviceModel: d.device_model,
+          publicUpdates: (d.public_updates || []) as PublicUpdate[],
+          status: d.status as TicketStatus,
+          dateReceived: d.date_received,
+        });
+      }
+      setLoading(false);
+    });
+  }, [tokenId]);
+
+  return { ticket, loading };
 }
