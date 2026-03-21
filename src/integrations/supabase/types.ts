@@ -22,9 +22,11 @@ export type Database = {
           date_received: string
           device_model: string
           id: string
+          is_price_public: boolean
           internal_notes: string | null
           issue_description: string | null
           os_passcode: string | null
+          price: number | null
           public_updates: Json | null
           status: string
           token_id: string
@@ -36,9 +38,11 @@ export type Database = {
           date_received?: string
           device_model: string
           id?: string
+          is_price_public?: boolean
           internal_notes?: string | null
           issue_description?: string | null
           os_passcode?: string | null
+          price?: number | null
           public_updates?: Json | null
           status?: string
           token_id: string
@@ -50,9 +54,11 @@ export type Database = {
           date_received?: string
           device_model?: string
           id?: string
+          is_price_public?: boolean
           internal_notes?: string | null
           issue_description?: string | null
           os_passcode?: string | null
+          price?: number | null
           public_updates?: Json | null
           status?: string
           token_id?: string

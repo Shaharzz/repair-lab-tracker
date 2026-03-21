@@ -1,86 +1,84 @@
-import { STATUSES, type TicketStatus } from '@/context/TicketContext';
+import { TicketStatus } from '@/context/TicketContext';
+import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 
-export function ProgressStepper({ currentStatus }: { currentStatus: TicketStatus }) {
-  const currentIndex = STATUSES.indexOf(currentStatus);
+// אנחנו מגדירים מערך מסודר של הסטטוסים עם השמות בעברית, כדי שהסדר שלהם על הציר יהיה נכון.
+// שימו לב: מכיוון שאנחנו ב-RTL, הסטטוס הראשון (Received) יופיע מימין, והאחרון (Completed) משמאל.
+const STEPS_CONFIG = [
+    { id: 'Received', label: 'התקבל' },
+    { id: 'Diagnosing', label: 'באבחון' },
+    { id: 'Waiting for Parts', label: 'ממתין לחלקים' },
+    { id: 'In Repair', label: 'בתיקון' },
+    { id: 'Ready for Pickup', label: 'מוכן לאיסוף' },
+    { id: 'Completed', label: 'הושלם' },
+] as const;
 
-  return (
-    <div className="w-full">
-      {/* Desktop */}
-      <div className="hidden sm:flex items-center justify-between">
-        {STATUSES.map((status, i) => {
-          const isDone = i < currentIndex;
-          const isCurrent = i === currentIndex;
-          return (
-            <div key={status} className="flex flex-1 items-center">
-              <div className="flex flex-col items-center gap-1.5">
+interface Props {
+    currentStatus: TicketStatus;
+}
+
+export function ProgressStepper({ currentStatus }: Props) {
+    // מוצאים את המפתח של הסטטוס הנוכחי כדי לדעת עד לאן לצבוע את הציר
+    const currentIndex = STEPS_CONFIG.findIndex(step => step.id === currentStatus);
+
+    return (
+        <div className="w-full font-sans" dir="rtl">
+            {/* Container המרכזי עם Flexbox למירכוז וריווח אוטומטי */}
+            <div className="flex items-center justify-between relative w-full px-1">
+
+                {/* ציר התקדמות - פס הרקע האפור */}
+                <div className="absolute top-[18px] left-0 right-0 h-1 bg-gray-100 rounded-full z-0 mx-6" />
+
+                {/* ציר התקדמות - הפס הכחול שמתמלא (Flex grow) */}
                 <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-all duration-500 ${
-                    isDone
-                      ? 'bg-primary text-primary-foreground'
-                      : isCurrent
-                      ? 'bg-primary text-primary-foreground tech-glow-sm'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {isDone ? <Check className="h-4 w-4" /> : i + 1}
-                </div>
-                <span
-                  className={`text-[10px] leading-tight text-center max-w-[72px] ${
-                    isCurrent ? 'font-semibold text-foreground' : 'text-muted-foreground'
-                  }`}
-                >
-                  {status}
-                </span>
-              </div>
-              {i < STATUSES.length - 1 && (
-                <div
-                  className={`mx-1 h-0.5 flex-1 rounded-full transition-colors duration-500 ${
-                    i < currentIndex ? 'bg-primary' : 'bg-border'
-                  }`}
+                    className="absolute top-[18px] right-6 h-1 bg-blue-600 rounded-full z-0 transition-all duration-500 ease-out"
+                    style={{
+                        // מחשבים את אחוז המילוי של הפס הכחול על פי הסטטוס
+                        width: `calc(${ (currentIndex / (STEPS_CONFIG.length - 1)) * 100 }% - 12px)`
+                    }}
                 />
-              )}
-            </div>
-          );
-        })}
-      </div>
 
-      {/* Mobile — vertical */}
-      <div className="flex flex-col gap-0 sm:hidden">
-        {STATUSES.map((status, i) => {
-          const isDone = i < currentIndex;
-          const isCurrent = i === currentIndex;
-          return (
-            <div key={status} className="flex items-start gap-3">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                    isDone
-                      ? 'bg-primary text-primary-foreground'
-                      : isCurrent
-                      ? 'bg-primary text-primary-foreground tech-glow-sm'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {isDone ? <Check className="h-3.5 w-3.5" /> : i + 1}
-                </div>
-                {i < STATUSES.length - 1 && (
-                  <div
-                    className={`w-0.5 h-6 ${i < currentIndex ? 'bg-primary' : 'bg-border'}`}
-                  />
-                )}
-              </div>
-              <span
-                className={`text-sm pt-1 ${
-                  isCurrent ? 'font-semibold text-foreground' : 'text-muted-foreground'
-                }`}
-              >
-                {status}
+                {/* לולאה ליצירת הכדורים והתוויות */}
+                {STEPS_CONFIG.map((step, index) => {
+                    const isCompleted = index < currentIndex;
+                    const isCurrent = index === currentIndex;
+
+                    return (
+                        <div key={step.id} className="flex flex-col items-center group relative z-10 flex-1">
+                            {/* כדור הסטטוס */}
+                            <div
+                                className={cn(
+                                    "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-sm",
+                                    // סטטוס שבוצע: כחול מלא עם וי
+                                    isCompleted && "bg-blue-600 border-blue-600 text-white",
+                                    // סטטוס נוכחי: עיגול כחול עם כיתוב בפנים (כמו בתמונה המקורית)
+                                    isCurrent && "bg-blue-50 border-blue-600 text-blue-600 font-bold",
+                                    // סטטוס שעוד לא בוצע: אפור ניטרלי
+                                    !isCompleted && !isCurrent && "bg-white border-gray-200 text-gray-400"
+                                )}
+                            >
+                                {isCompleted ? (
+                                    <Check className="w-5 h-5" strokeWidth={3} />
+                                ) : (
+                                    // מציגים את מספר הסטטוס (מ-1 עד 6)
+                                    <span className="text-sm">{index + 1}</span>
+                                )}
+                            </div>
+
+                            {/* תווית הטקסט מעודכנת */}
+                            <span
+                                className={cn(
+                                    "absolute top-11 text-center whitespace-normal leading-tight text-[11px] sm:text-xs max-w-[80px] break-words",
+                                    // טקסט מודגש רק לסטטוס הנוכחי
+                                    isCurrent ? "font-semibold text-gray-900" : "font-normal text-gray-500"
+                                )}
+                            >
+                {step.label}
               </span>
+                        </div>
+                    );
+                })}
             </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+        </div>
+    );
 }

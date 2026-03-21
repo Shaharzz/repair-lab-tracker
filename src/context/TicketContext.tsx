@@ -2,12 +2,12 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { supabase } from '@/integrations/supabase/client';
 
 export type TicketStatus =
-  | 'Received'
-  | 'Diagnosing'
-  | 'Waiting for Parts'
-  | 'In Repair'
-  | 'Ready for Pickup'
-  | 'Completed';
+    | 'Received'
+    | 'Diagnosing'
+    | 'Waiting for Parts'
+    | 'In Repair'
+    | 'Ready for Pickup'
+    | 'Completed';
 
 export const STATUSES: TicketStatus[] = [
   'Received',
@@ -35,6 +35,9 @@ export interface Ticket {
   publicUpdates: PublicUpdate[];
   status: TicketStatus;
   dateReceived: string;
+  // שדות חדשים שהוספנו:
+  price?: number;
+  isPricePublic?: boolean;
 }
 
 // Public-only ticket (no sensitive fields)
@@ -46,6 +49,9 @@ export interface PublicTicket {
   publicUpdates: PublicUpdate[];
   status: TicketStatus;
   dateReceived: string;
+  // הוספת השדות גם כאן כדי שיופיעו בדף המעקב
+  price?: number;
+  isPricePublic?: boolean;
 }
 
 function generateTokenId(): string {
@@ -59,6 +65,8 @@ function generateTokenId(): string {
 
 // Map DB row to app Ticket
 function rowToTicket(row: any): Ticket {
+  const parsedPrice = row.price === null || row.price === undefined ? undefined : Number(row.price);
+
   return {
     id: row.id,
     tokenId: row.token_id,
@@ -71,6 +79,9 @@ function rowToTicket(row: any): Ticket {
     publicUpdates: (row.public_updates || []) as PublicUpdate[],
     status: row.status as TicketStatus,
     dateReceived: row.date_received,
+    // מיפוי השדות מהמסד לאפליקציה
+    price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
+    isPricePublic: Boolean(row.is_price_public ?? row.isPricePublic),
   };
 }
 
@@ -90,9 +101,9 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
 
   const refreshTickets = useCallback(async () => {
     const { data, error } = await supabase
-      .from('tickets')
-      .select('*')
-      .order('created_at', { ascending: false });
+        .from('tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
 
     if (!error && data) {
       setTickets(data.map(rowToTicket));
@@ -107,21 +118,23 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
   const addTicket = useCallback(async (ticket: Omit<Ticket, 'id' | 'tokenId'>): Promise<Ticket> => {
     const tokenId = generateTokenId();
     const { data, error } = await supabase
-      .from('tickets')
-      .insert({
-        token_id: tokenId,
-        customer_name: ticket.customerName,
-        customer_phone: ticket.customerPhone,
-        device_model: ticket.deviceModel,
-        os_passcode: ticket.osPasscode,
-        issue_description: ticket.issueDescription,
-        internal_notes: ticket.internalNotes,
-        public_updates: ticket.publicUpdates as any,
-        status: ticket.status,
-        date_received: ticket.dateReceived,
-      })
-      .select()
-      .single();
+        .from('tickets')
+        .insert({
+          token_id: tokenId,
+          customer_name: ticket.customerName,
+          customer_phone: ticket.customerPhone,
+          device_model: ticket.deviceModel,
+          os_passcode: ticket.osPasscode,
+          issue_description: ticket.issueDescription,
+          internal_notes: ticket.internalNotes,
+          public_updates: ticket.publicUpdates as any,
+          status: ticket.status,
+          date_received: ticket.dateReceived,
+          price: ticket.price,
+          is_price_public: ticket.isPricePublic,
+        })
+        .select()
+        .single();
 
     if (error) throw error;
     const newTicket = rowToTicket(data);
@@ -141,21 +154,25 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.dateReceived !== undefined) dbUpdates.date_received = updates.dateReceived;
 
+    // הוספת השדות החדשים לשליחה למסד הנתונים
+    if (updates.price !== undefined) dbUpdates.price = updates.price;
+    if (updates.isPricePublic !== undefined) dbUpdates.is_price_public = updates.isPricePublic;
+
     const { error } = await supabase
-      .from('tickets')
-      .update(dbUpdates)
-      .eq('id', id);
+        .from('tickets')
+        .update(dbUpdates)
+        .eq('id', id);
 
     if (error) throw error;
     setTickets(prev =>
-      prev.map(t => (t.id === id ? { ...t, ...updates } : t))
+        prev.map(t => (t.id === id ? { ...t, ...updates } : t))
     );
   }, []);
 
   return (
-    <TicketContext.Provider value={{ tickets, loading, addTicket, updateTicket, refreshTickets }}>
-      {children}
-    </TicketContext.Provider>
+      <TicketContext.Provider value={{ tickets, loading, addTicket, updateTicket, refreshTickets }}>
+        {children}
+      </TicketContext.Provider>
   );
 }
 
@@ -165,7 +182,8 @@ export function useTickets() {
   return ctx;
 }
 
-// Hook for public tracking — uses the security definer function
+// Hook for public tracking
+// Hook for public tracking
 export function usePublicTicket(tokenId: string | undefined) {
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -176,9 +194,16 @@ export function usePublicTicket(tokenId: string | undefined) {
       return;
     }
 
+    setLoading(true);
     supabase.rpc('get_ticket_by_token', { p_token_id: tokenId }).then(({ data, error }) => {
+      // הדפסה לבדיקת תקלות - תסתכל ב-Console אם הדף ריק!
+      console.log("Supabase Data:", data);
+      console.log("Supabase Error:", error);
+
       if (!error && data) {
+        // בגלל ה-SQL החדש, data הוא בוודאות אובייקט בודד ולא מערך
         const d = data as any;
+
         setTicket({
           id: d.id,
           tokenId: d.token_id,
@@ -187,7 +212,12 @@ export function usePublicTicket(tokenId: string | undefined) {
           publicUpdates: (d.public_updates || []) as PublicUpdate[],
           status: d.status as TicketStatus,
           dateReceived: d.date_received,
+          // שליפת המחיר בצורה בטוחה
+          price: d.price ? Number(d.price) : undefined,
+          isPricePublic: Boolean(d.is_price_public || d.isPricePublic),
         });
+      } else {
+        setTicket(null);
       }
       setLoading(false);
     });
