@@ -83,6 +83,7 @@ function rowToTicket(row: any): Ticket {
     dateReceived: row.date_received,
     color: row.color ?? undefined,
     imei: row.imei ?? undefined,
+    //devicePhotos: (row.device_photos || []) as string[],
     // מיפוי השדות מהמסד לאפליקציה
     price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
     isPricePublic: Boolean(row.is_price_public ?? row.isPricePublic),
@@ -136,6 +137,7 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
           date_received: ticket.dateReceived,
           color: ticket.color,
           imei: ticket.imei,
+         // device_photos: ticket.devicePhotos || [],
           price: ticket.price,
           is_price_public: ticket.isPricePublic,
         })
@@ -161,6 +163,7 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
     if (updates.dateReceived !== undefined) dbUpdates.date_received = updates.dateReceived;
     if (updates.color !== undefined) dbUpdates.color = updates.color;
     if (updates.imei !== undefined) dbUpdates.imei = updates.imei;
+    if (updates.devicePhotos !== undefined) dbUpdates.device_photos = updates.devicePhotos;
 
     // הוספת השדות החדשים לשליחה למסד הנתונים
     if (updates.price !== undefined) dbUpdates.price = updates.price;
