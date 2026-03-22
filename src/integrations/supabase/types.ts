@@ -14,6 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
+      inventory: {
+        Row: {
+          category: string | null
+          cost_price: number | null
+          created_at: string | null
+          fit_for: string | null
+          id: string
+          item_name: string
+          min_quantity: number
+          quantity: number
+          retail_price: number | null
+          sku: string | null
+          supplier: string | null
+        }
+        Insert: {
+          category?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          fit_for?: string | null
+          id?: string
+          item_name: string
+          min_quantity?: number
+          quantity?: number
+          retail_price?: number | null
+          sku?: string | null
+          supplier?: string | null
+        }
+        Update: {
+          category?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          fit_for?: string | null
+          id?: string
+          item_name?: string
+          min_quantity?: number
+          quantity?: number
+          retail_price?: number | null
+          sku?: string | null
+          supplier?: string | null
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          created_at: string | null
+          customer_name: string
+          id: string
+          invoice_number: string
+          issue_date: string
+          line_items: Json
+          paid_at: string | null
+          payment_method: string | null
+          status: string
+          ticket_id: string | null
+          total_amount: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_name: string
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          line_items?: Json
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          ticket_id?: string | null
+          total_amount?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_name?: string
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          line_items?: Json
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          ticket_id?: string | null
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           color: string | null
